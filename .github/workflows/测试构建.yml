@@ -1,0 +1,107 @@
+name: Kernel Builder
+
+on:
+  workflow_dispatch: # 手动触发
+    inputs:
+      kpm_patch:
+        description: "是否添加KPM修补？"
+        type: boolean
+        required: true
+        default: true
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libncurses-dev \
+            bison \
+            flex \
+            libssl-dev \
+            libelf-dev \
+            git \
+            curl \
+            unzip \
+            bc \
+            python3 \
+            make \
+            gcc \
+            g++ \
+            patch  # 确保安装patch工具
+
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: Guxin12/marble_kernel
+          ref: Glow
+          path: kernel
+          fetch-depth: 0
+
+      - name: Setup Clang toolchain
+        run: |
+          mkdir clang
+          curl -L -o clang/clang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/428d18d9732aa7ebfcaed87a582d86155db878d4/clang-r416183b.tar.gz
+          tar -zxf clang/clang.tar.gz -C clang
+          echo "CLANG_PATH=$(pwd)/clang/bin" >> $GITHUB_ENV
+
+      # 步骤1: 应用SUSFS补丁
+      - name: Apply SUSFS patch
+        working-directory: ./kernel
+        run: |
+          echo "Applying SUSFS patch with fuzz=3..."
+          patch -p1 --fuzz=3 < 50_add_susfs_in_gki-*.patch || true
+          # 删除补丁文件
+          rm -f 50_add_susfs_in_gki-*.patch
+          echo "SUSFS patch applied and file removed"
+
+      - name: Build kernel
+        working-directory: ./kernel
+        run: |
+          # 设置环境变量
+          export ARCH=arm64
+          export PATH=${CLANG_PATH}:${PATH}
+          export KBUILD_BUILD_HOST="Marble"
+          export KBUILD_BUILD_USER="Guxin12"
+          
+          # 清理并配置编译环境
+          make LLVM=1 LLVM_IAS=1 O=out mrproper
+          make LLVM=1 LLVM_IAS=1 O=out marble_defconfig
+          
+          # 开始编译
+          make LLVM=1 LLVM_IAS=1 O=out -j$(nproc --all)
+          
+          # 生成文件名
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          echo "IMAGE_NAME=marble-kernel-$TIMESTAMP" >> $GITHUB_ENV
+
+      # KPM修补步骤 - 仅在手动触发时选择添加KPM时执行
+      - name: Patch Image for KPM (SukiSU)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.kpm_patch == true }}
+        working-directory: ./kernel/out/arch/arm64/boot
+        run: |
+          echo "Patching Image file for KPM..."
+          # 下载KPM修补工具
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux" -o patch
+          chmod +x patch
+          
+          # 执行修补
+          ./patch
+          
+          # 替换原始Image文件
+          if [ -f "oImage" ]; then
+            mv oImage Image
+            echo "Image patched successfully for KPM"
+          else
+            echo "Error: Patch failed - oImage not found"
+            exit 1
+          fi
+
+      - name: Upload kernel image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: kernel/out/arch/arm64/boot/Image
+          retention-days: 7
