@@ -99,9 +99,35 @@ jobs:
             exit 1
           fi
 
-      - name: Upload kernel image
+      # 新增步骤：准备AnyKernel3刷机包
+      - name: Prepare AnyKernel3
+        run: |
+          # 克隆AnyKernel3模板
+          git clone https://github.com/osm0sis/AnyKernel3.git
+          # 复制编译好的内核镜像到AnyKernel3目录
+          cp kernel/out/arch/arm64/boot/Image AnyKernel3/Image
+          # 添加刷机脚本（可选）
+          echo "mv /tmp/anykernel/Image \$home" >> AnyKernel3/anykernel.sh
+          echo "chmod 644 \$home/Image" >> AnyKernel3/anykernel.sh
+          echo "dd if=\$home/Image of=\$block" >> AnyKernel3/anykernel.sh
+          # 设置刷机包名称
+          echo "ZIP_NAME=${{ env.IMAGE_NAME }}-ak3.zip" >> $GITHUB_ENV
+
+      # 新增步骤：打包AnyKernel3刷机包
+      - name: Package AnyKernel3
+        working-directory: ./AnyKernel3
+        run: |
+          # 创建刷机包
+          zip -r9 ../${{ env.ZIP_NAME }} *
+          # 设置刷机包路径
+          echo "AK3_ZIP_PATH=$(pwd)/../${{ env.ZIP_NAME }}" >> $GITHUB_ENV
+
+      # 修改后的上传步骤：同时上传Image和刷机包
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.IMAGE_NAME }}
-          path: kernel/out/arch/arm64/boot/Image
+          name: kernel-build-${{ env.IMAGE_NAME }}
+          path: |
+            kernel/out/arch/arm64/boot/Image
+            ${{ env.AK3_ZIP_PATH }}
           retention-days: 7
