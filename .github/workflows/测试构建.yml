@@ -54,26 +54,6 @@ jobs:
           rm -f 50_add_susfs_in_gki-*.patch
           echo "SUSFS patch applied and file removed"
 
-      # 步骤2: 应用syscall hooks补丁
-      - name: Apply syscall hooks patch
-        working-directory: ./kernel
-        run: |
-          echo "Applying syscall hooks patch..."
-          patch -p1 -F 3 < syscall_hooks.patch
-          # 删除补丁文件
-          rm -f syscall_hooks.patch
-          echo "Syscall hooks patch applied and file removed"
-
-      # 步骤3: 应用隐藏功能补丁
-      - name: Apply hide stuff patch
-        working-directory: ./kernel
-        run: |
-          echo "Applying hide stuff patch..."
-          patch -p1 -F 3 < 69_hide_stuff.patch
-          # 删除补丁文件
-          rm -f 69_hide_stuff.patch
-          echo "Hide stuff patch applied and file removed"
-
       - name: Build kernel
         working-directory: ./kernel
         run: |
