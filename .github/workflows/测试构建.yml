@@ -78,6 +78,8 @@ jobs:
           echo "IMAGE_NAME=marble-kernel-$TIMESTAMP" >> $GITHUB_ENV
           # 设置镜像路径
           echo "IMAGE_PATH=$(pwd)/out/arch/arm64/boot/Image" >> $GITHUB_ENV
+          # 设置默认artifact前缀
+          echo "ARTIFACT_PREFIX=original" >> $GITHUB_ENV
 
       # KPM修补步骤 - 仅在手动触发时选择添加KPM时执行
       - name: Patch Image for KPM (SukiSU)
@@ -96,8 +98,8 @@ jobs:
           if [ -f "oImage" ]; then
             mv oImage Image
             echo "Image patched successfully for KPM"
-            # 设置KPM修补标志
-            echo "KPM_PATCHED=true" >> $GITHUB_ENV
+            # 更新artifact前缀
+            echo "ARTIFACT_PREFIX=kpm-patched" >> $GITHUB_ENV
           else
             echo "Error: Patch failed - oImage not found"
             exit 1
@@ -126,14 +128,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          # 根据是否应用KPM修补设置不同的artifact名称
-          name: ${{ 
-            github.event_name == 'workflow_dispatch' && 
-            inputs.kpm_patch == true && 
-            env.KPM_PATCHED == 'true' 
-            && 'kpm-patched-kernel' 
-            || 'original-kernel' 
-          }}-${{ env.IMAGE_NAME }}
+          name: ${{ env.ARTIFACT_PREFIX }}-kernel-${{ env.IMAGE_NAME }}
           path: |
             ${{ env.IMAGE_PATH }}
             ${{ env.ZIP_NAME }}
