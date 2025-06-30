@@ -2,9 +2,12 @@ name: Kernel Builder
 
 on:
   workflow_dispatch: # 手动触发
-  schedule:
-    - cron: '0 0 * * *' # 每天UTC 0点自动构建
-
+    inputs:
+      kpm_patch:
+        description: "是否添加KPM修补？"
+        type: boolean
+        required: true
+        default: true
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -71,6 +74,28 @@ jobs:
           # 生成文件名
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           echo "IMAGE_NAME=marble-kernel-$TIMESTAMP" >> $GITHUB_ENV
+
+      # KPM修补步骤 - 仅在手动触发时选择添加KPM时执行
+      - name: Patch Image for KPM (SukiSU)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.kpm_patch == true }}
+        working-directory: ./kernel/out/arch/arm64/boot
+        run: |
+          echo "Patching Image file for KPM..."
+          # 下载KPM修补工具
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux" -o patch
+          chmod +x patch
+          
+          # 执行修补
+          ./patch
+          
+          # 替换原始Image文件
+          if [ -f "oImage" ]; then
+            mv oImage Image
+            echo "Image patched successfully for KPM"
+          else
+            echo "Error: Patch failed - oImage not found"
+            exit 1
+          fi
 
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
