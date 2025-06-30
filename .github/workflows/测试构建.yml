@@ -63,6 +63,8 @@ jobs:
           # 设置环境变量
           export ARCH=arm64
           export PATH=${CLANG_PATH}:${PATH}
+          export KBUILD_BUILD_HOST="Marble"
+          export KBUILD_BUILD_USER="Guxin12"
           
           # 清理并配置编译环境
           make LLVM=1 LLVM_IAS=1 O=out mrproper
