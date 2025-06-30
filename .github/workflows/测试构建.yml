@@ -76,6 +76,8 @@ jobs:
           # 生成文件名
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           echo "IMAGE_NAME=marble-kernel-$TIMESTAMP" >> $GITHUB_ENV
+          # 设置镜像路径
+          echo "IMAGE_PATH=$(pwd)/out/arch/arm64/boot/Image" >> $GITHUB_ENV
 
       # KPM修补步骤 - 仅在手动触发时选择添加KPM时执行
       - name: Patch Image for KPM (SukiSU)
@@ -94,35 +96,45 @@ jobs:
           if [ -f "oImage" ]; then
             mv oImage Image
             echo "Image patched successfully for KPM"
+            # 设置KPM修补标志
+            echo "KPM_PATCHED=true" >> $GITHUB_ENV
           else
             echo "Error: Patch failed - oImage not found"
             exit 1
           fi
 
-      # 新增步骤：准备AnyKernel3刷机包
+      # 准备AnyKernel3刷机包
       - name: Prepare AnyKernel3
         run: |
           # 克隆AnyKernel3模板
           git clone https://github.com/osm0sis/AnyKernel3.git
+          
           # 复制编译好的内核镜像到AnyKernel3目录
-          cp kernel/out/arch/arm64/boot/Image AnyKernel3/Image
+          cp ${{ env.IMAGE_PATH }} AnyKernel3/Image
+          
           # 设置刷机包名称
-          echo "ZIP_NAME=${{ env.IMAGE_NAME }}-ak3.zip" >> $GITHUB_ENV
-          echo "AK3_ZIP_PATH=$(pwd)/${{ env.ZIP_NAME }}" >> $GITHUB_ENV
+          echo "ZIP_NAME=marblekernel.zip" >> $GITHUB_ENV
 
-      # 新增步骤：打包AnyKernel3刷机包
+      # 打包AnyKernel3刷机包
       - name: Package AnyKernel3
         working-directory: ./AnyKernel3
         run: |
-          # 创建刷机包（输出到工作目录根目录）
+          # 创建刷机包
           zip -r9 ../${{ env.ZIP_NAME }} *
 
-      # 修改后的上传步骤：同时上传Image和刷机包
+      # 上传步骤：同时上传Image和刷机包
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-build-${{ env.IMAGE_NAME }}
+          # 根据是否应用KPM修补设置不同的artifact名称
+          name: ${{ 
+            github.event_name == 'workflow_dispatch' && 
+            inputs.kpm_patch == true && 
+            env.KPM_PATCHED == 'true' 
+            && 'kpm-patched-kernel' 
+            || 'original-kernel' 
+          }}-${{ env.IMAGE_NAME }}
           path: |
-            kernel/out/arch/arm64/boot/Image
-            ${{ env.ZIP_NAME }}  # 直接使用文件名
+            ${{ env.IMAGE_PATH }}
+            ${{ env.ZIP_NAME }}
           retention-days: 7
