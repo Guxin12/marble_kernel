@@ -16,7 +16,7 @@ config KSU_DEBUG
 	    Enable KernelSU debug mode.
 
 config KSU_MULTI_MANAGER_SUPPORT
-    bool "KernelSU debug mode"
+    bool "Multi KernelSU manager support"
     depends on KSU
     default n
     help
@@ -49,13 +49,14 @@ config KSU_CMDLINE
 config KPM
 	  bool "Enable SukiSU KPM"
 	  depends on KSU && 64BIT
-	  default y
+	  default n
 	  help
 	    Enabling this option will activate the KPM feature of SukiSU.
 	    This option is suitable for scenarios where you need to force KPM to be enabled.
 	    but it may affect system stability.
-      select KALLSYMS
-      select KALLSYMS_ALL
+	  select KALLSYMS
+	  select KALLSYMS_ALL
+
 menu "KernelSU - SUSFS"
 config KSU_SUSFS
     bool "KernelSU addon - SUSFS"
