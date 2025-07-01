@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Guxin12/marble_kernel
-          ref: Glow
+          ref: main
           path: kernel
           fetch-depth: 0
 
