@@ -111,6 +111,58 @@ jobs:
           # 克隆AnyKernel3模板
           git clone https://github.com/osm0sis/AnyKernel3.git
           
+          # 写入自定义anykernel.sh内容
+          cat > AnyKernel3/anykernel.sh << 'EOF'
+          ### AnyKernel3 Ramdisk Mod Script
+          ## osm0sis @ xda-developers
+
+          ### AnyKernel setup
+          # global properties
+          properties() { '
+          kernel.string=Melt by Guxin12 @酷安初春在路野
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=1
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=marble
+          device.name2=marblein
+          device.name3=
+          device.name4=
+          device.name5=
+          supported.versions=
+          supported.patchlevels=
+          supported.vendorpatchlevels=
+          '; } # end properties
+
+
+          ### AnyKernel install
+          ## boot files attributes
+          #boot_attributes() {
+          #set_perm_recursive 0 0 755 644 $RAMDISK/*;
+          #set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
+          #} # end attributes
+
+          # boot shell variables
+          BLOCK=boot;
+          IS_SLOT_DEVICE=1;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          # import functions/variables and setup patching - see for reference (DO NOT REMOVE)
+          . tools/ak3-core.sh;
+
+          # boot install
+          if [ -L "/dev/block/bootdevice/by-name/init_boot_a" -o -L "/dev/block/by-name/init_boot_a" ]; then
+              split_boot # for devices with init_boot ramdisk
+              flash_boot # for devices with init_boot ramdisk
+          else
+              dump_boot # use split_boot to skip ramdisk unpack, e.g. for devices with init_boot ramdisk
+              write_boot # use flash_boot to skip ramdisk repack, e.g. for devices with init_boot ramdisk
+          fi
+          ## end boot install
+          EOF
+          
           # 复制编译好的内核镜像到AnyKernel3目录
           cp ${{ env.IMAGE_PATH }} AnyKernel3/Image
           
